@@ -1,6 +1,12 @@
 # sdk-style-sql-database-project
 Use SDK-style SQL database projects 
 
+## Build
+Install [Invoke-Build](https://github.com/nightroman/Invoke-Build)
+
+```
+Install-Module InvokeBuild
+```
 
 ## References
 
