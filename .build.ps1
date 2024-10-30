@@ -3,7 +3,8 @@ Param (
     [string]$SolutionDir = "$BuildRoot\src",
     [string]$ProjectName = "Starwars.DB",
     [string]$BuildDir = "$BuildRoot\Output",
-    [string]$Configuration = "Release"
+    [string]$Configuration = "Release",
+    [string]$ToolsPath = "$BuildRoot\Tools"
 )
 
 task Clean { 
@@ -11,8 +12,35 @@ task Clean {
     Remove-Item "$SolutionDir\$ProjectName\obj" -ErrorAction SilentlyContinue -Force -Recurse
     Remove-Item $BuildDir -ErrorAction SilentlyContinue -Force -Recurse
 
-
 }
+
+task Init {
+    
+    if (-not(Get-Command -Name sqlpackage -ErrorAction SilentlyContinue)) {
+        if (-not(Test-Path $ToolsPath)) {
+            New-Item -Path $ToolsPath -ItemType Directory
+        }
+        
+        Write-Build Yellow "Downloading SqlPackage.exe"
+        $Uri = 'https://aka.ms/sqlpackage-windows'
+        $Download = Invoke-WebRequest -Uri $Uri -OutFile "$ToolsPath\SqlPackage.zip"
+
+        Expand-Archive -Path "$ToolsPath\SqlPackage.zip" -DestinationPath "$ToolsPath\SqlPackage" -Force
+    }
+}
+
+task Deploy {
+    Set-Alias SqlPackage (Resolve-Path "$ToolsPath\SqlPackage\sqlpackage.exe").Path
+    $LocalPublishProfile = (Get-ChildItem "$BuildRoot\src\$ProjectName\publish\Local.publish.xml").FullName
+    Write-Build Yellow "Deploying database with profile: $LocalPublishProfile"
+
+    #https://learn.microsoft.com/en-us/sql/tools/sql-database-projects/tutorials/create-deploy-sql-project
+    exec {
+        sqlpackage /Action:Publish /Profile:$LocalPublishProfile /SourceFile:$DacPacFile
+
+    }
+}
+
 
 task Build {
     $Projects = @()
@@ -28,4 +56,4 @@ task Build {
     Write-Build Yellow "DacPac path: $DacPacFile"
 }
 
-task . Clean, Build
+task . Clean, Build, Init, Deploy
